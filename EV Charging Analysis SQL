@@ -1,0 +1,258 @@
+-- Viewing the Table
+SELECT 
+	* 
+FROM 
+	ev_charging_cleaned_data eccd limit 5;
+
+|Station_ID|City|Install_Date|Charger_Type|Daily_Avg_Utilization_Hrs|Avg_Charging_Rate_INR|Electricity_Cost_INR|Total_Energy_Dispensed_kWh|Maintenance_Incidents|Total_Maintenance_Cost_INR|Operational_Status|Install_Cost_INR|Total_Revenue|Total_Operational_Cost|Net_Profit|ROI|
+|----------|----|------------|------------|-------------------------|---------------------|--------------------|--------------------------|---------------------|--------------------------|------------------|----------------|-------------|----------------------|----------|---|
+|EV-0001|Hyderabad|2023-10-17|L2|4.11|20.93|7.17|75105.48|6|22618.01|Active|226092.86|1571957.7|561124.3|1010833.4|447.09|
+|EV-0002|Kochi|2022-04-25|DCFC|4.12|17.49|8.58|36252.31|6|11685.22|Active|1457005.43|634052.9|322730.04|311322.86|21.37|
+|EV-0003|Bangalore|2022-01-26|DCFC|6.89|17.29|7.85|57363.37|4|32122.42|Active|1518838.98|991812.67|482424.87|509387.8|33.54|
+|EV-0004|Kochi|2024-01-30|L2|1.66|17.23|5.94|42837.14|2|15610.4|Active|164965.07|738083.92|270063.01|468020.91|283.71|
+|EV-0005|Kochi|2022-10-09|L2|5.3|20.23|6.41|54918.08|4|11618.16|Active|268306.43|1110992.76|363643.05|747349.71|278.54|
+
+
+-- Charger Type with Highest Profit 
+Select 
+	Charger_Type, 
+	SUM(Net_Profit) FROM ev_charging_cleaned_data eccd 
+GROUP BY 
+	Charger_Type 
+ORDER BY 
+	SUM(Net_Profit) desc;
+
+|Charger_Type|SUM(Net_Profit)|
+|------------|---------------|
+|L2|378323036.23|
+|DCFC|157816193.34|
+|Unknown|27886784.41|
+
+
+-- Ranking Cities with Highest Average ROI
+SELECT 
+	City, 
+	ROUND(AVG(ROI),2) FROM ev_charging_cleaned_data eccd 
+GROUP BY 
+	City
+ORDER BY 
+	AVG(ROI) desc;
+
+|City|ROUND(AVG(ROI),2)|
+|----|-----------------|
+|Chennai|197.93|
+|Coimbatore|189.79|
+|Kochi|176.61|
+|Madurai|173.98|
+|Hyderabad|173.46|
+|Bangalore|161.29|
+
+
+-- Station with Highest ROI
+SELECT 
+	*, 
+	MAX(ROI) FROM ev_charging_cleaned_data eccd
+
+|Station_ID|City|Install_Date|Charger_Type|Daily_Avg_Utilization_Hrs|Avg_Charging_Rate_INR|Electricity_Cost_INR|Total_Energy_Dispensed_kWh|Maintenance_Incidents|Total_Maintenance_Cost_INR|Operational_Status|Install_Cost_INR|Total_Revenue|Total_Operational_Cost|Net_Profit|ROI|MAX(ROI)|
+|----------|----|------------|------------|-------------------------|---------------------|--------------------|--------------------------|---------------------|--------------------------|------------------|----------------|-------------|----------------------|----------|---|--------|
+|EV-1132|Madurai|2022-02-10|L2|8.1|23.3|9.33|81024.33|1|6519.73|Active|170213.39|1887866.89|762476.73|1125390.16|661.16|661.16|
+
+
+-- Creating Profitability Tier
+SELECT 
+	Station_ID, 
+	Charger_Type, 
+	Net_Profit,
+    CASE 
+        WHEN Net_Profit > 500000 THEN 'High'
+        WHEN Net_Profit BETWEEN 100000 AND 500000 THEN 'Medium'
+        ELSE 'Low'
+    END AS Profitability_Tier
+FROM 
+	ev_charging_cleaned_data eccd 
+ORDER BY 
+	Net_Profit DESC;
+
+|Station_ID|Charger_Type|Net_Profit|Profitability_Tier|
+|----------|------------|----------|------------------|
+|EV-0537|L2|1185695.26|High|
+|EV-0382|L2|1149615.77|High|
+|EV-1132|L2|1125390.16|High|
+|EV-0323|L2|1112982.37|High|
+|EV-0438|DCFC|1096516.3|High|
+|EV-1103|L2|1094089.01|High|
+|EV-0428|DCFC|1090474.42|High|
+|EV-0287|DCFC|1072992.34|High|
+|EV-1049|L2|1070651.68|High|
+|EV-0939|DCFC|1066461.5|High|
+
+
+- Least 3 Stations from Each City based on Net_Profit
+WITH CTE AS 
+(
+SELECT  
+	Station_ID, 
+	City, 
+	Charger_Type, 
+	Net_Profit,
+	RANK()OVER(PARTITION BY City ORDER BY Net_Profit) as Rank
+FROM 
+ev_charging_cleaned_data eccd 
+)
+SELECT 
+	Station_ID, 
+	City, 
+	Charger_Type, 
+	Net_Profit, 
+	Rank
+FROM 
+	CTE 
+WHERE 
+	Rank <= 3
+ORDER BY 
+	City;
+
+|Station_ID|City|Charger_Type|Net_Profit|Rank|
+|----------|----|------------|----------|----|
+|EV-0131|Bangalore|DCFC|69468.03|1|
+|EV-0303|Bangalore|DCFC|107608.32|2|
+|EV-0107|Bangalore|DCFC|151030.45|3|
+|EV-0322|Chennai|L2|120317.33|1|
+|EV-0235|Chennai|L2|131377.85|2|
+|EV-0807|Chennai|L2|133829.73|3|
+|EV-0991|Coimbatore|L2|44775.09|1|
+|EV-0896|Coimbatore|DCFC|157534.25|2|
+|EV-0741|Coimbatore|L2|175051.7|3|
+|EV-0265|Hyderabad|L2|17629.62|1|
+|EV-1082|Hyderabad|L2|84329.33|2|
+|EV-1042|Hyderabad|L2|122179.93|3|
+|EV-0654|Kochi|L2|-8588.34|1|
+|EV-0473|Kochi|DCFC|51418.13|2|
+|EV-1066|Kochi|L2|131419.86|3|
+|EV-0491|Madurai|DCFC|141724.66|1|
+|EV-0779|Madurai|L2|168320.08|2|
+|EV-0241|Madurai|L2|168513.06|3|
+
+
+--Choosing Top 10 Cities with Net_Profit greater than the Average Net Profit Grouped by Cities
+WITH CTE AS 
+(
+SELECT  
+	City, 
+	ROUND(AVG(Net_Profit),2) as City_Benchmark
+FROM 
+	ev_charging_cleaned_data eccd 
+GROUP BY 
+	City
+),
+A AS
+(
+SELECT  
+	e.City, 
+	e.Net_Profit, 
+	City_Benchmark,
+	RANK()OVER(PARTITION BY e.City ORDER BY e.Net_Profit DESC) as Rank
+FROM 
+	ev_charging_cleaned_data e 
+JOIN 
+	CTE 
+ON 
+	e.City = CTE.City
+WHERE 
+	e.Net_Profit > City_Benchmark
+)
+SELECT 
+	* 
+FROM
+	A
+WHERE
+	Rank <= 10
+ORDER BY 
+	City, 
+	Net_Profit DESC;
+
+|City|Net_Profit|City_Benchmark|Rank|
+|----|----------|--------------|----|
+|Bangalore|1072992.34|493807.24|1|
+|Bangalore|978370.71|493807.24|2|
+|Bangalore|969284.44|493807.24|3|
+|Bangalore|961149.73|493807.24|4|
+|Bangalore|932856.03|493807.24|5|
+|Bangalore|912380.14|493807.24|6|
+|Bangalore|900293.14|493807.24|7|
+|Bangalore|855557.3|493807.24|8|
+|Bangalore|849935.97|493807.24|9|
+|Bangalore|839331.23|493807.24|10|
+|Chennai|1112982.37|529584.84|1|
+|Chennai|1037174.6|529584.84|2|
+|Chennai|1007044.04|529584.84|3|
+|Chennai|928970.71|529584.84|4|
+|Chennai|887637.31|529584.84|5|
+|Chennai|851804.23|529584.84|6|
+|Chennai|851341.79|529584.84|7|
+|Chennai|849308.45|529584.84|8|
+|Chennai|834809.24|529584.84|9|
+|Chennai|826242.64|529584.84|10|
+|Coimbatore|1149615.77|484682.68|1|
+|Coimbatore|1054504.65|484682.68|2|
+|Coimbatore|995372.26|484682.68|3|
+|Coimbatore|942550.66|484682.68|4|
+|Coimbatore|875184.44|484682.68|5|
+|Coimbatore|858593.4|484682.68|6|
+|Coimbatore|853720.69|484682.68|7|
+|Coimbatore|841668.38|484682.68|8|
+|Coimbatore|839916.04|484682.68|9|
+|Coimbatore|827033.21|484682.68|10|
+|Hyderabad|1185695.26|522185.05|1|
+|Hyderabad|1010833.4|522185.05|2|
+|Hyderabad|989190.4|522185.05|3|
+|Hyderabad|987750.22|522185.05|4|
+|Hyderabad|987245.7|522185.05|5|
+|Hyderabad|923860.07|522185.05|6|
+|Hyderabad|914726.21|522185.05|7|
+|Hyderabad|907802.04|522185.05|8|
+|Hyderabad|881935.03|522185.05|9|
+|Hyderabad|878259.59|522185.05|10|
+|Kochi|1096516.3|515848.06|1|
+|Kochi|1094089.01|515848.06|2|
+|Kochi|1012299.93|515848.06|3|
+|Kochi|1003866.82|515848.06|4|
+|Kochi|981815.57|515848.06|5|
+|Kochi|967136.77|515848.06|6|
+|Kochi|914902.64|515848.06|7|
+|Kochi|909248.78|515848.06|8|
+|Kochi|901998.49|515848.06|9|
+|Kochi|873045.49|515848.06|10|
+|Madurai|1125390.16|509406.92|1|
+|Madurai|1090474.42|509406.92|2|
+|Madurai|1070651.68|509406.92|3|
+|Madurai|1066461.5|509406.92|4|
+|Madurai|1038401.33|509406.92|5|
+|Madurai|883828.03|509406.92|6|
+|Madurai|871528.65|509406.92|7|
+|Madurai|842349.18|509406.92|8|
+|Madurai|811601.78|509406.92|9|
+|Madurai|809419.25|509406.92|10|
+
+
+--Choosing Cities with Highest Maintencance_Incidents where the Operational status is 
+SELECT 
+	City, 
+	SUM(Maintenance_Incidents)
+FROM
+	ev_charging_cleaned_data
+WHERE 
+	Operational_Status = 'Offline' and ROI < 100
+GROUP BY 
+	City
+ORDER BY 
+	SUM(Maintenance_Incidents) desc;
+
+|City|SUM(Maintenance_Incidents)|
+|----|--------------------------|
+|Hyderabad|30|
+|Kochi|21|
+|Chennai|13|
+|Bangalore|9|
+|Madurai|7|
+|Coimbatore|6|
